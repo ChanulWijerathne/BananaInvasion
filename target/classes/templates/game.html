@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Banana Math Quest</title>
+
+  <style>
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:#0f172a;
+      font-family: Arial, sans-serif;
+      color:#ffffff;
+    }
+
+    .container{
+      width:800px;
+      background:#1e293b;
+      padding:30px;
+      border-radius:12px;
+      box-shadow:0 10px 40px rgba(0,0,0,0.4);
+      text-align:center;
+    }
+
+    h1{
+      margin-top:0;
+      margin-bottom:20px;
+    }
+
+    .info{
+      display:flex;
+      justify-content:space-between;
+      margin-bottom:20px;
+      font-weight:bold;
+    }
+
+    .timer{
+      font-size:36px;
+    }
+
+    .puzzle{
+      margin:20px 0;
+    }
+
+    img{
+      max-width:100%;
+      max-height:300px;
+      object-fit:contain;
+      border-radius:8px;
+      background:#ffffff;
+      padding:10px;
+    }
+
+    .options{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:15px;
+    }
+
+    .option-btn{
+      padding:15px;
+      font-size:18px;
+      border:none;
+      border-radius:8px;
+      background:#3b82f6;
+      color:white;
+      cursor:pointer;
+      font-weight:bold;
+    }
+
+    .option-btn:hover{
+      background:#2563eb;
+    }
+
+    .option-btn:disabled{
+      opacity:0.6;
+      cursor:not-allowed;
+    }
+
+    .feedback{
+      margin-top:15px;
+      font-weight:bold;
+      min-height:20px;
+    }
+
+    .correct{ color:#22c55e; }
+    .wrong{ color:#ef4444; }
+    .warn{ color:#fbbf24; }
+  </style>
+</head>
+
+<body>
+<div class="container">
+  <h1>Banana Math Quest</h1>
+
+  <div class="info">
+    <div>Round: <span id="round">1</span>/10</div>
+    <div class="timer"><span id="time">30</span></div>
+    <div>Score: <span id="score">0</span></div>
+  </div>
+
+  <div class="puzzle">
+    <img id="puzzleImg" alt="Puzzle"/>
+  </div>
+
+  <div class="options" id="options"></div>
+
+  <div class="feedback" id="feedback"></div>
+</div>
+
+<script>
+  let round = 1;
+  let score = 0;
+  let timeLeft = 30; // 🔥 changed to 30 seconds
+  let solution = -1;
+  let timerId;
+
+  const elRound = document.getElementById("round");
+  const elScore = document.getElementById("score");
+  const elTime = document.getElementById("time");
+  const elFeedback = document.getElementById("feedback");
+  const elImg = document.getElementById("puzzleImg");
+  const elOptions = document.getElementById("options");
+
+  function setFeedback(text, cls){
+    elFeedback.textContent = text || "";
+    elFeedback.className = "feedback " + (cls || "");
+  }
+
+  function setOptionsEnabled(enabled){
+    [...elOptions.querySelectorAll("button")].forEach(btn => btn.disabled = !enabled);
+  }
+
+  function shuffle(arr){
+    for(let i = arr.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function generateChoices(correct){
+    const choices = new Set([correct]);
+    while(choices.size < 4){
+      choices.add(Math.floor(Math.random() * 20));
+    }
+    return shuffle([...choices]);
+  }
+
+  function renderOptions(values){
+    elOptions.innerHTML = "";
+    values.forEach(v => {
+      const btn = document.createElement("button");
+      btn.className = "option-btn";
+      btn.textContent = v;
+      btn.onclick = () => chooseAnswer(v);
+      elOptions.appendChild(btn);
+    });
+  }
+
+  async function loadPuzzle(){
+    try{
+      const res = await fetch("/api/puzzle");
+      const data = await res.json();
+
+      if(data.error){
+        generateDemoPuzzle();
+        return;
+      }
+
+      solution = data.solution;
+      elImg.src = data.imageDataUrl;
+
+      renderOptions(generateChoices(solution));
+      setOptionsEnabled(true);
+      setFeedback("", "");
+
+    } catch {
+      generateDemoPuzzle();
+    }
+  }
+
+  function generateDemoPuzzle(){
+    solution = Math.floor(Math.random() * 10);
+    elImg.src = "";
+    renderOptions(generateChoices(solution));
+    setOptionsEnabled(true);
+    setFeedback("API unavailable. Showing demo puzzle.", "warn");
+  }
+
+  function startTimer(){
+    clearInterval(timerId);
+    timeLeft = 30; // 🔥 reset to 30 every round
+    elTime.textContent = timeLeft;
+    elTime.style.color = "#ffffff";
+
+    timerId = setInterval(()=>{
+      timeLeft--;
+      elTime.textContent = timeLeft;
+
+      if(timeLeft <= 5){
+        elTime.style.color = "#ef4444";
+      }
+
+      if(timeLeft <= 0){
+        clearInterval(timerId);
+        setOptionsEnabled(false);
+        setFeedback("Time up!", "warn");
+        setTimeout(nextRound, 800);
+      }
+    },1000);
+  }
+
+  function chooseAnswer(selected){
+    clearInterval(timerId);
+    setOptionsEnabled(false);
+
+    if(selected === solution){
+      score++;
+      elScore.textContent = score;
+      setFeedback("Correct!", "correct");
+    } else {
+      setFeedback("Wrong! Correct was: " + solution, "wrong");
+    }
+
+    setTimeout(nextRound, 800);
+  }
+
+  async function nextRound(){
+    round++;
+    if(round > 10){
+      setFeedback("Game Over! Final Score: " + score, "correct");
+      return;
+    }
+    elRound.textContent = round;
+    await loadPuzzle();
+    startTimer();
+  }
+
+  (async function init(){
+    await loadPuzzle();
+    startTimer();
+  })();
+</script>
+</body>
+</html>
