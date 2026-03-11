@@ -1,5 +1,7 @@
 package bananainvasion;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.animation.AnimationTimer;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -7,12 +9,19 @@ import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 
+import java.io.ByteArrayInputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.*;
 
 public class GameView {
@@ -38,8 +47,8 @@ public class GameView {
 
     private AnimationTimer gameLoop;
     private Timeline enemySpawner;
-
     private boolean running = false;
+    private boolean reviveUsed = false;
     private int score = 0;
 
     public GameView() {
@@ -54,10 +63,13 @@ public class GameView {
 
     public void startGame() {
         score = 0;
+        reviveUsed = false;
         scoreLabel.setText("Score: 0");
         clearObjects();
+
         player.setLayoutX(WIDTH / 2.0 - 27);
         player.setLayoutY(ISLAND_Y - 70);
+
         startMainLoop();
     }
 
@@ -124,6 +136,14 @@ public class GameView {
         enemySpawner.play();
     }
 
+    private void stopMainLoop() {
+        running = false;
+        gameLoop.stop();
+        if (enemySpawner != null) {
+            enemySpawner.stop();
+        }
+    }
+
     private void clearObjects() {
         gamePane.getChildren().removeAll(enemies);
         gamePane.getChildren().removeAll(bullets);
@@ -187,7 +207,7 @@ public class GameView {
             if (enemy.getLayoutY() + enemy.getHeight() >= ISLAND_Y) {
                 gamePane.getChildren().remove(enemy);
                 iterator.remove();
-                showGameOverOverlay();
+                onEnemyReachedIsland();
                 return;
             }
         }
@@ -214,11 +234,121 @@ public class GameView {
         bullets.removeAll(bulletsToRemove);
     }
 
-    private void showGameOverOverlay() {
-        running = false;
-        gameLoop.stop();
-        if (enemySpawner != null) enemySpawner.stop();
+    private void onEnemyReachedIsland() {
+        stopMainLoop();
 
+        if (!reviveUsed) {
+            reviveUsed = true;
+            showReviveOverlay();
+        } else {
+            showGameOverOverlay();
+        }
+    }
+
+    private void showReviveOverlay() {
+        VBox overlay = new VBox(15);
+        overlay.setAlignment(Pos.CENTER);
+        overlay.setPrefSize(720, 540);
+        overlay.setMaxSize(720, 540);
+        overlay.setStyle("-fx-background-color: rgba(15, 23, 42, 0.95); -fx-background-radius: 16; -fx-padding: 25;");
+
+        Label title = new Label("Revive Challenge");
+        title.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: white;");
+
+        Label text = new Label("Solve the Banana puzzle in 15 seconds to continue");
+        text.setStyle("-fx-font-size: 16px; -fx-text-fill: #cbd5e1;");
+
+        Label timerLabel = new Label("15");
+        timerLabel.setStyle("-fx-font-size: 34px; -fx-font-weight: bold; -fx-text-fill: #fbbf24;");
+
+        ImageView puzzleImageView = new ImageView();
+        puzzleImageView.setFitWidth(420);
+        puzzleImageView.setFitHeight(240);
+        puzzleImageView.setPreserveRatio(true);
+
+        HBox row1 = new HBox(15);
+        HBox row2 = new HBox(15);
+        row1.setAlignment(Pos.CENTER);
+        row2.setAlignment(Pos.CENTER);
+
+        try {
+            PuzzleData puzzle = fetchPuzzle();
+            puzzleImageView.setImage(puzzle.image());
+
+            List<Integer> options = generateOptions(puzzle.solution());
+
+            for (int i = 0; i < 4; i++) {
+                int optionValue = options.get(i);
+
+                Button btn = new Button(String.valueOf(optionValue));
+                btn.setPrefWidth(120);
+                btn.setPrefHeight(45);
+                btn.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+
+                btn.setOnAction(e -> {
+                    root.getChildren().remove(overlay);
+
+                    if (optionValue == puzzle.solution()) {
+                        clearObjects();
+                        startMainLoop();
+                    } else {
+                        showGameOverOverlay();
+                    }
+                });
+
+                if (i < 2) {
+                    row1.getChildren().add(btn);
+                } else {
+                    row2.getChildren().add(btn);
+                }
+            }
+
+            overlay.getChildren().addAll(title, text, timerLabel, puzzleImageView, row1, row2);
+            root.getChildren().add(overlay);
+
+            final int[] timeLeft = {15};
+
+            Timeline reviveTimer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+                timeLeft[0]--;
+                timerLabel.setText(String.valueOf(timeLeft[0]));
+
+                if (timeLeft[0] <= 5) {
+                    timerLabel.setTextFill(Color.RED);
+                }
+
+                if (timeLeft[0] <= 0) {
+                    root.getChildren().remove(overlay);
+                    showGameOverOverlay();
+                }
+            }));
+            reviveTimer.setCycleCount(15);
+            reviveTimer.play();
+
+        } catch (Exception e) {
+            root.getChildren().remove(overlay);
+            showGameOverOverlay();
+        }
+    }
+
+    private List<Integer> generateOptions(int correct) {
+        Set<Integer> values = new HashSet<>();
+        values.add(correct);
+
+        while (values.size() < 4) {
+            int offset = 1 + random.nextInt(9);
+            int candidate = correct + (random.nextBoolean() ? offset : -offset);
+            if (candidate < 0) {
+                candidate = correct + offset;
+            }
+            values.add(candidate);
+        }
+
+        List<Integer> options = new ArrayList<>(values);
+        Collections.shuffle(options);
+        return options;
+    }
+
+    private void showGameOverOverlay() {
         VBox overlay = new VBox(18);
         overlay.setAlignment(Pos.CENTER);
         overlay.setPrefSize(500, 300);
@@ -235,6 +365,7 @@ public class GameView {
         playAgain.setPrefWidth(160);
         playAgain.setPrefHeight(45);
         playAgain.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+
         playAgain.setOnAction(e -> {
             root.getChildren().remove(overlay);
             startGame();
@@ -242,5 +373,32 @@ public class GameView {
 
         overlay.getChildren().addAll(title, finalScore, playAgain);
         root.getChildren().add(overlay);
+    }
+
+    private PuzzleData fetchPuzzle() throws Exception {
+        String apiUrl = "https://marcconrad.com/uob/banana/api.php?out=json&base64=yes";
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(apiUrl))
+                .header("User-Agent", "BananaInvasion")
+                .GET()
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode rootNode = mapper.readTree(response.body());
+
+        String base64Image = rootNode.get("question").asText();
+        int solution = rootNode.get("solution").asInt();
+
+        byte[] imageBytes = Base64.getDecoder().decode(base64Image);
+        Image image = new Image(new ByteArrayInputStream(imageBytes));
+
+        return new PuzzleData(image, solution);
+    }
+
+    private record PuzzleData(Image image, int solution) {
     }
 }
