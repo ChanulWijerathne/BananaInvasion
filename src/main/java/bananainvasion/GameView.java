@@ -16,6 +16,9 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
+import javafx.scene.image.Image;
+import javafx.scene.paint.ImagePattern;
+import java.util.Objects;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
@@ -34,7 +37,7 @@ public class GameView {
     private final Pane gamePane = new Pane();
 
     private final Rectangle island = new Rectangle(WIDTH, 110);
-    private final Rectangle player = new Rectangle(55, 55);
+    private final javafx.scene.shape.Rectangle player = new javafx.scene.shape.Rectangle(150, 180);
 
     private final Label titleLabel = new Label("Banana Invasion");
     private final Label scoreLabel = new Label("Score: 0");
@@ -67,8 +70,8 @@ public class GameView {
         scoreLabel.setText("Score: 0");
         clearObjects();
 
-        player.setLayoutX(WIDTH / 2.0 - 27);
-        player.setLayoutY(ISLAND_Y - 70);
+        player.setLayoutX(WIDTH / 2.0 - 45);
+        player.setLayoutY(ISLAND_Y - 115);
 
         startMainLoop();
     }
@@ -81,11 +84,21 @@ public class GameView {
         island.setFill(Color.DARKSEAGREEN);
         island.setLayoutY(ISLAND_Y);
 
-        player.setFill(Color.DODGERBLUE);
+
+        try {
+            Image playerImage = new Image(
+                    Objects.requireNonNull(getClass().getResourceAsStream("/images/player.png"))
+            );
+            player.setFill(new ImagePattern(playerImage));
+        } catch (Exception e) {
+            player.setFill(Color.DODGERBLUE);
+            System.out.println("Player image not found: " + e.getMessage());
+        }
+
         player.setArcWidth(10);
         player.setArcHeight(10);
-        player.setLayoutX(WIDTH / 2.0 - 27);
-        player.setLayoutY(ISLAND_Y - 70);
+        player.setLayoutX(WIDTH / 2.0 - 45);
+        player.setLayoutY(ISLAND_Y - 115);
 
         titleLabel.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
         scoreLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
@@ -131,7 +144,7 @@ public class GameView {
 
         gameLoop.start();
 
-        enemySpawner = new Timeline(new KeyFrame(Duration.seconds(1.2), e -> spawnEnemy()));
+        enemySpawner = new Timeline(new KeyFrame(Duration.seconds(1.8), e -> spawnEnemy()));
         enemySpawner.setCycleCount(Timeline.INDEFINITE);
         enemySpawner.play();
     }
@@ -175,8 +188,13 @@ public class GameView {
     }
 
     private void spawnEnemy() {
-        double x = 50 + random.nextInt(WIDTH - 100);
-        double speed = 2 + random.nextDouble() * 1.5;
+
+        if (enemies.size() >= 3) {
+            return;
+        }
+
+        double x = 60 + random.nextInt(WIDTH - 200);
+        double speed = 1.4 + random.nextDouble() * 0.7;
 
         Enemy enemy = new Enemy(x, 30, speed);
         enemies.add(enemy);
@@ -247,89 +265,103 @@ public class GameView {
 
     private void showReviveOverlay() {
         VBox overlay = new VBox(15);
-        overlay.setAlignment(Pos.CENTER);
-        overlay.setPrefSize(720, 540);
-        overlay.setMaxSize(720, 540);
-        overlay.setStyle("-fx-background-color: rgba(15, 23, 42, 0.95); -fx-background-radius: 16; -fx-padding: 25;");
+            overlay.setAlignment(Pos.CENTER);
+            overlay.setPrefSize(720, 540);
+            overlay.setMaxSize(720, 540);
+            overlay.setStyle("-fx-background-color: rgba(15, 23, 42, 0.95); -fx-background-radius: 16; -fx-padding: 25;");
 
-        Label title = new Label("Revive Challenge");
-        title.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: white;");
+            Label title = new Label("Revive Challenge");
+            title.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: white;");
 
-        Label text = new Label("Solve the Banana puzzle in 15 seconds to continue");
-        text.setStyle("-fx-font-size: 16px; -fx-text-fill: #cbd5e1;");
+            Label text = new Label("Solve the Banana puzzle in 15 seconds to continue");
+            text.setStyle("-fx-font-size: 16px; -fx-text-fill: #cbd5e1;");
 
-        Label timerLabel = new Label("15");
-        timerLabel.setStyle("-fx-font-size: 34px; -fx-font-weight: bold; -fx-text-fill: #fbbf24;");
+            Label timerLabel = new Label("15");
+            timerLabel.setStyle("-fx-font-size: 34px; -fx-font-weight: bold; -fx-text-fill: #fbbf24;");
 
-        ImageView puzzleImageView = new ImageView();
-        puzzleImageView.setFitWidth(420);
-        puzzleImageView.setFitHeight(240);
-        puzzleImageView.setPreserveRatio(true);
+            ImageView puzzleImageView = new ImageView();
+            puzzleImageView.setFitWidth(420);
+            puzzleImageView.setFitHeight(240);
+            puzzleImageView.setPreserveRatio(true);
 
-        HBox row1 = new HBox(15);
-        HBox row2 = new HBox(15);
-        row1.setAlignment(Pos.CENTER);
-        row2.setAlignment(Pos.CENTER);
+            HBox row1 = new HBox(15);
+            HBox row2 = new HBox(15);
+            row1.setAlignment(Pos.CENTER);
+            row2.setAlignment(Pos.CENTER);
 
-        try {
-            PuzzleData puzzle = fetchPuzzle();
-            puzzleImageView.setImage(puzzle.image());
+            try {
+                PuzzleData puzzle = fetchPuzzle();
+                puzzleImageView.setImage(puzzle.image());
 
-            List<Integer> options = generateOptions(puzzle.solution());
+                List<Integer> options = generateOptions(puzzle.solution());
 
-            for (int i = 0; i < 4; i++) {
-                int optionValue = options.get(i);
+                final Timeline[] reviveTimerHolder = new Timeline[1];
+                final boolean[] answered = {false};
 
-                Button btn = new Button(String.valueOf(optionValue));
-                btn.setPrefWidth(120);
-                btn.setPrefHeight(45);
-                btn.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+                for (int i = 0; i < 4; i++) {
+                    int optionValue = options.get(i);
 
-                btn.setOnAction(e -> {
-                    root.getChildren().remove(overlay);
+                    Button btn = new Button(String.valueOf(optionValue));
+                    btn.setPrefWidth(120);
+                    btn.setPrefHeight(45);
+                    btn.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
 
-                    if (optionValue == puzzle.solution()) {
-                        clearObjects();
-                        startMainLoop();
+                    btn.setOnAction(e -> {
+                        if (answered[0]) return;
+                        answered[0] = true;
+
+                        if (reviveTimerHolder[0] != null) {
+                            reviveTimerHolder[0].stop();
+                        }
+
+                        root.getChildren().remove(overlay);
+
+                        if (optionValue == puzzle.solution()) {
+                            clearObjects();
+                            startMainLoop();
+                        } else {
+                            showGameOverOverlay();
+                        }
+                    });
+
+                    if (i < 2) {
+                        row1.getChildren().add(btn);
                     } else {
+                        row2.getChildren().add(btn);
+                    }
+                }
+
+                overlay.getChildren().addAll(title, text, timerLabel, puzzleImageView, row1, row2);
+                root.getChildren().add(overlay);
+
+                final int[] timeLeft = {15};
+
+                Timeline reviveTimer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+                    if (answered[0]) return;
+
+                    timeLeft[0]--;
+                    timerLabel.setText(String.valueOf(timeLeft[0]));
+
+                    if (timeLeft[0] <= 5) {
+                        timerLabel.setTextFill(Color.RED);
+                    }
+
+                    if (timeLeft[0] <= 0) {
+                        answered[0] = true;
+                        root.getChildren().remove(overlay);
                         showGameOverOverlay();
                     }
-                });
+                }));
 
-                if (i < 2) {
-                    row1.getChildren().add(btn);
-                } else {
-                    row2.getChildren().add(btn);
-                }
+                reviveTimer.setCycleCount(15);
+                reviveTimerHolder[0] = reviveTimer;
+                reviveTimer.play();
+
+            } catch (Exception e) {
+                root.getChildren().remove(overlay);
+                showGameOverOverlay();
             }
-
-            overlay.getChildren().addAll(title, text, timerLabel, puzzleImageView, row1, row2);
-            root.getChildren().add(overlay);
-
-            final int[] timeLeft = {15};
-
-            Timeline reviveTimer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
-                timeLeft[0]--;
-                timerLabel.setText(String.valueOf(timeLeft[0]));
-
-                if (timeLeft[0] <= 5) {
-                    timerLabel.setTextFill(Color.RED);
-                }
-
-                if (timeLeft[0] <= 0) {
-                    root.getChildren().remove(overlay);
-                    showGameOverOverlay();
-                }
-            }));
-            reviveTimer.setCycleCount(15);
-            reviveTimer.play();
-
-        } catch (Exception e) {
-            root.getChildren().remove(overlay);
-            showGameOverOverlay();
         }
-    }
-
     private List<Integer> generateOptions(int correct) {
         Set<Integer> values = new HashSet<>();
         values.add(correct);
