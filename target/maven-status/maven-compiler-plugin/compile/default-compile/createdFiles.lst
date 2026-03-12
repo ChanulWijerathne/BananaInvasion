@@ -1,5 +1,8 @@
 bananainvasion\Enemy.class
 bananainvasion\GameView.class
 bananainvasion\GameView$1.class
+bananainvasion\UserService.class
 bananainvasion\GameView$PuzzleData.class
+bananainvasion\DatabaseConnection.class
 bananainvasion\Main.class
+bananainvasion\AuthView.class

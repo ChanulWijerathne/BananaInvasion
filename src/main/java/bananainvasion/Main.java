@@ -8,15 +8,13 @@ public class Main extends Application {
 
     @Override
     public void start(Stage stage) {
-        GameView gameView = new GameView();
+        AuthView authView = new AuthView(stage);
+        Scene scene = authView.createChoiceScene();
 
-        Scene scene = new Scene(gameView.getRoot(), 1000, 700);
         stage.setTitle("Banana Invasion");
         stage.setScene(scene);
         stage.setResizable(false);
         stage.show();
-
-        gameView.startGame();
     }
 
     public static void main(String[] args) {
