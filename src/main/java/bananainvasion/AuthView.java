@@ -33,7 +33,7 @@ public class AuthView {
 
         loginButton.setOnAction(e -> stage.setScene(createLoginScene()));
         registerButton.setOnAction(e -> stage.setScene(createRegisterScene()));
-        guestButton.setOnAction(e -> openGame());
+        guestButton.setOnAction(e -> openGame(null, true));
 
         VBox root = new VBox(15, title, subtitle, loginButton, registerButton, guestButton);
         root.setAlignment(Pos.CENTER);
@@ -74,7 +74,7 @@ public class AuthView {
             boolean success = userService.loginUser(username, password);
 
             if (success) {
-                openGame();
+                openGame(username, false);
             } else {
                 messageLabel.setText("Invalid username or password.");
             }
@@ -146,11 +146,12 @@ public class AuthView {
         return new Scene(root, 500, 450);
     }
 
-    private void openGame() {
-        GameView gameView = new GameView();
+    private void openGame(String username, boolean guestMode) {
+        GameView gameView = new GameView(stage, username, guestMode);
         Scene gameScene = new Scene(gameView.getRoot(), 1000, 700);
         stage.setTitle("Banana Invasion");
         stage.setScene(gameScene);
+        stage.centerOnScreen();
         gameView.startGame();
     }
 }
