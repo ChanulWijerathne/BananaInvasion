@@ -1,6 +1,7 @@
 package bananainvasion;
 
 public class ScoreEntry {
+
     private final String username;
     private final int highScore;
 

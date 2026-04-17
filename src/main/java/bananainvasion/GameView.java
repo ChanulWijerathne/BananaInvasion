@@ -31,34 +31,52 @@ import java.util.Objects;
 
 public class GameView {
 
+    // Main game window size
     private static final int WIDTH = 1000;
     private static final int HEIGHT = 700;
+
+    // Y position where the island starts
     private static final int ISLAND_Y = 590;
 
+    // Stage reference used for scene switching
     private final Stage stage;
+
+    // Logged-in username (null for guest)
     private final String currentUsername;
+
+    // True if the player entered through guest mode
     private final boolean guestMode;
+
+    // Service used for saving scores and leaderboard access
     private final UserService userService = new UserService();
 
+    // Root layout allows overlays such as revive puzzle screen
     private final StackPane root = new StackPane();
     private final Pane gamePane = new Pane();
 
+    // Main game objects
     private final Rectangle island = new Rectangle(WIDTH, 110);
     private final Rectangle player = new Rectangle(150, 180);
 
+    // UI labels
     private final Label titleLabel = new Label("Banana Invasion");
     private final Label scoreLabel = new Label("Score: 0");
 
+    // Lists to keep track of active enemies and bullets
     private final List<Enemy> enemies = new ArrayList<>();
     private final List<Rectangle> bullets = new ArrayList<>();
+
+    // Tracks currently pressed keys for movement
     private final Set<KeyCode> pressedKeys = new HashSet<>();
 
     private final Random random = new Random();
 
+    // Game loop and timed events
     private AnimationTimer gameLoop;
     private Timeline enemySpawner;
     private Timeline reviveTimer;
 
+    // Game state flags
     private boolean running = false;
     private boolean reviveUsed = false;
     private int score = 0;
@@ -77,35 +95,42 @@ public class GameView {
         return root;
     }
 
+    // Starts or restarts the game
     public void startGame() {
         score = 0;
         reviveUsed = false;
         scoreLabel.setText("Score: 0");
         clearObjects();
 
+        // Position player on the island
         player.setLayoutX(WIDTH / 2.0 - 75);
         player.setLayoutY(ISLAND_Y - 150);
 
         startMainLoop();
     }
 
+    // Builds the visual scene
     private void buildUI() {
         root.setStyle("-fx-background-color: linear-gradient(to bottom, #87ceeb, #dbeafe);");
 
         gamePane.setPrefSize(WIDTH, HEIGHT);
 
         try {
+            // Load island image
             Image islandImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/images/island.png")));
             island.setFill(new ImagePattern(islandImage));
         } catch (Exception e) {
+            // Fallback if image missing
             island.setFill(Color.DARKSEAGREEN);
         }
         island.setLayoutY(ISLAND_Y);
 
         try {
+            // Load player image
             Image playerImage = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/images/player.png")));
             player.setFill(new ImagePattern(playerImage));
         } catch (Exception e) {
+            // Fallback if image missing
             player.setFill(Color.DODGERBLUE);
             System.out.println("Player image not found: " + e.getMessage());
         }
@@ -127,12 +152,14 @@ public class GameView {
         root.getChildren().add(gamePane);
     }
 
+    // Handles keyboard input
     private void setupInput() {
         root.setFocusTraversable(true);
 
         root.setOnKeyPressed(e -> {
             pressedKeys.add(e.getCode());
 
+            // Shoot when space is pressed
             if (e.getCode() == KeyCode.SPACE && running) {
                 shoot();
             }
@@ -141,6 +168,7 @@ public class GameView {
         root.setOnKeyReleased(e -> pressedKeys.remove(e.getCode()));
     }
 
+    // Main per-frame update loop
     private void setupLoop() {
         gameLoop = new AnimationTimer() {
             @Override
@@ -153,17 +181,20 @@ public class GameView {
         };
     }
 
+    // Starts gameplay and enemy spawning
     private void startMainLoop() {
         running = true;
         root.requestFocus();
 
         gameLoop.start();
 
+        // Enemies are spawned every 1.8 seconds
         enemySpawner = new Timeline(new KeyFrame(Duration.seconds(1.8), e -> spawnEnemy()));
         enemySpawner.setCycleCount(Timeline.INDEFINITE);
         enemySpawner.play();
     }
 
+    // Stops active gameplay
     private void stopMainLoop() {
         running = false;
 
@@ -176,6 +207,7 @@ public class GameView {
         }
     }
 
+    // Clears bullets and enemies when restarting or reviving
     private void clearObjects() {
         gamePane.getChildren().removeAll(enemies);
         gamePane.getChildren().removeAll(bullets);
@@ -183,6 +215,7 @@ public class GameView {
         bullets.clear();
     }
 
+    // Player movement logic
     private void updatePlayer() {
         double moveSpeed = 6;
 
@@ -195,6 +228,7 @@ public class GameView {
         }
     }
 
+    // Creates a bullet at the player's current position
     private void shoot() {
         Rectangle bullet = new Rectangle(6, 16, Color.GOLD);
         bullet.setArcWidth(4);
@@ -206,7 +240,9 @@ public class GameView {
         gamePane.getChildren().add(bullet);
     }
 
+    // Spawns a banana enemy from the top
     private void spawnEnemy() {
+        // Prevent too many enemies on screen at once
         if (enemies.size() >= 3) {
             return;
         }
@@ -219,6 +255,7 @@ public class GameView {
         gamePane.getChildren().add(enemy);
     }
 
+    // Moves bullets upward
     private void updateBullets() {
         Iterator<Rectangle> iterator = bullets.iterator();
 
@@ -233,6 +270,7 @@ public class GameView {
         }
     }
 
+    // Moves enemies downward and checks if they hit the island
     private void updateEnemies() {
         Iterator<Enemy> iterator = enemies.iterator();
 
@@ -249,6 +287,7 @@ public class GameView {
         }
     }
 
+    // Detect bullet-enemy collisions and update score
     private void checkBulletEnemyCollisions() {
         List<Enemy> enemiesToRemove = new ArrayList<>();
         List<Rectangle> bulletsToRemove = new ArrayList<>();
@@ -270,9 +309,11 @@ public class GameView {
         bullets.removeAll(bulletsToRemove);
     }
 
+    // Called when an enemy reaches the island
     private void onEnemyReachedIsland() {
         stopMainLoop();
 
+        // Player gets one revive chance only
         if (!reviveUsed) {
             reviveUsed = true;
             showReviveOverlay();
@@ -281,6 +322,7 @@ public class GameView {
         }
     }
 
+    // Shows Banana API puzzle for revive
     private void showReviveOverlay() {
         VBox overlay = new VBox(15);
         overlay.setAlignment(Pos.CENTER);
@@ -308,6 +350,7 @@ public class GameView {
         row2.setAlignment(Pos.CENTER);
 
         try {
+            // Fetch puzzle from external Banana API
             PuzzleData puzzle = fetchPuzzle();
             int correctAnswer = puzzle.solution();
             puzzleImageView.setImage(puzzle.image());
@@ -349,6 +392,7 @@ public class GameView {
 
             final int[] timeLeft = {15};
 
+            // Countdown timer for puzzle
             reviveTimer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
                 timeLeft[0]--;
                 timerLabel.setText(String.valueOf(timeLeft[0]));
@@ -373,6 +417,7 @@ public class GameView {
         }
     }
 
+    // Ends the game and moves to results scene
     private void endGame() {
         running = false;
 
@@ -386,6 +431,7 @@ public class GameView {
             reviveTimer.stop();
         }
 
+        // Save high score only for registered users
         if (!guestMode && currentUsername != null) {
             userService.updateHighScore(currentUsername, score);
         }
@@ -396,6 +442,7 @@ public class GameView {
         stage.centerOnScreen();
     }
 
+    // Generates 4 answer choices for revive puzzle
     private List<Integer> generateOptions(int correct) {
         Set<Integer> values = new HashSet<>();
         values.add(correct);
@@ -414,6 +461,7 @@ public class GameView {
         return options;
     }
 
+    // Calls Banana API and returns puzzle image + answer
     private PuzzleData fetchPuzzle() throws Exception {
         String apiUrl = "https://marcconrad.com/uob/banana/api.php?out=json&base64=yes";
 
@@ -438,6 +486,7 @@ public class GameView {
         return new PuzzleData(image, solution);
     }
 
+    // Small record to hold API puzzle data
     private record PuzzleData(Image image, int solution) {
     }
 }
