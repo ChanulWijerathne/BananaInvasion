@@ -2,7 +2,6 @@ package bananainvasion;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.SQLException;
 
 public class DatabaseConnection {
 
@@ -10,7 +9,7 @@ public class DatabaseConnection {
     private static final String USER = "root";
     private static final String PASSWORD = "chanul9807";
 
-    public static Connection getConnection() throws SQLException {
+    public static Connection getConnection() throws Exception {
         return DriverManager.getConnection(URL, USER, PASSWORD);
     }
 }

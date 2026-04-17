@@ -1,6 +1,7 @@
 package bananainvasion;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
@@ -14,8 +15,11 @@ public class Main extends Application {
         stage.setTitle("Banana Invasion");
         stage.setScene(scene);
         stage.setResizable(false);
+        stage.sizeToScene();
         stage.show();
-        stage.centerOnScreen();
+
+        // Center after JavaFX finishes drawing the window
+        Platform.runLater(stage::centerOnScreen);
     }
 
     public static void main(String[] args) {

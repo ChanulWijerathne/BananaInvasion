@@ -16,6 +16,8 @@ public class ResultsView {
     private final String currentUsername;
     private final boolean guestMode;
     private final int currentScore;
+
+    // Used to fetch leaderboard data from the database
     private final UserService userService = new UserService();
 
     public ResultsView(Stage stage, String currentUsername, boolean guestMode, int currentScore) {
@@ -36,6 +38,7 @@ public class ResultsView {
         Label title = new Label("Game Results");
         title.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
 
+        // Show the score from the game just played
         Label scoreLabel = new Label("Your Score: " + currentScore);
         scoreLabel.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
 
@@ -47,6 +50,7 @@ public class ResultsView {
         leaderboardBox.setPadding(new Insets(10));
         leaderboardBox.setStyle("-fx-background-color: rgba(255,255,255,0.6); -fx-background-radius: 12;");
 
+        // Get top 10 players sorted by highest score
         List<ScoreEntry> leaderboard = userService.getLeaderboard();
 
         if (leaderboard.isEmpty()) {
@@ -86,6 +90,7 @@ public class ResultsView {
         bottomBox.setAlignment(Pos.BOTTOM_RIGHT);
 
         if (guestMode) {
+            // Guest users must register if they want to play again
             Button registerButton = new Button("Register to Play Again");
             registerButton.setPrefWidth(220);
             registerButton.setPrefHeight(45);
@@ -96,6 +101,7 @@ public class ResultsView {
             });
             bottomBox.getChildren().add(registerButton);
         } else {
+            // Registered users can directly play another round
             Button playAgainButton = new Button("Play Again");
             playAgainButton.setPrefWidth(160);
             playAgainButton.setPrefHeight(45);
